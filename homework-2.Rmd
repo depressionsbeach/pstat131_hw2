@@ -81,7 +81,7 @@ abalone_test <- testing(abalone_split)
 
 Using the **training** data, create a recipe predicting the outcome variable, `age`, with all other predictor variables. Note that you should not include `rings` to predict `age`. Explain why you shouldn't use `rings` to predict `age`.
 
-**Explain why I shouldn't use rings**
+**Since 'rings' is strictly linearly correlated with 'age,' including it as a predictor is going to produce a very trivial model---where the coefficient for rings is 1, the constant coefficient is 1.5, and the coefficients for all other predictors are 0. This goes against the objectives of this model, which is to use the other easy-to-obtain predictors to estimate the ages of abalones.**
 
 Steps for your recipe:
 
@@ -99,8 +99,6 @@ Steps for your recipe:
 
 You'll need to investigate the `tidymodels` documentation to find the appropriate step functions to use.
 
-
-**contains("type")solved the issue but why**
 ```{r}
 abalone_wo_rings <- subset(abalone_train, select = -rings)
 naive_recipe <- recipe(age ~ ., data = abalone_wo_rings) %>% 
@@ -146,7 +144,7 @@ test_abalone <- data.frame(type = 'F', longest_shell = 0.50, diameter = 0.10, he
 
 predict(lm_fit, new_data = test_abalone)
 ```
-
+**The model predicts the abalone to be 22.6 years old**
 
 ### Question 7
 
@@ -156,10 +154,22 @@ Now you want to assess your model's performance. To do this, use the `yardstick`
 library(yardstick)
 ```
 
-
 1.  Create a metric set that includes *R^2^*, RMSE (root mean squared error), and MAE (mean absolute error).
 2.  Use `predict()` and `bind_cols()` to create a tibble of your model's predicted values from the **training data** along with the actual observed ages (these are needed to assess your model's performance).
 3.  Finally, apply your metric set to the tibble, report the results, and interpret the *R^2^* value.
+
+```{r}
+abalone_metrics <- metric_set(rmse, rsq, mae)
+
+abalone_train_res <- 
+  predict(lm_fit, new_data = abalone_train %>% select(-c(rings, age))) %>%
+  bind_cols(abalone_train %>% select(age))
+
+abalone_metrics(abalone_train_res, truth = age, estimate = .pred)
+
+```
+**Our model has a training RMSE of 2.15, ** *R^2^* **of 0.553 and a MAE of 1.55. All the figures are adjusted.** <br/>
+**An ** *R^2^* **of 0.552921 suggests that about 55.3% of the variability of the abalones' ages can be explained by our model.**
 
 ### Required for 231 Students
 
@@ -179,9 +189,19 @@ where the underlying model $Y=f(X)+\epsilon$ satisfies the following:
 
 Which term(s) in the bias-variance tradeoff above represent the reproducible error? Which term(s) represent the irreducible error?
 
+$Var(\hat{f}(x_0))$ **and** $[Bias(\hat{f}(x_0))]^2$ **represent the reducible error and ** $Var(\epsilon)$ **represents the irreducible error.**
+<br /> 
+
 #### Question 9
 
 Using the bias-variance tradeoff above, demonstrate that the expected test error is always at least as large as the irreducible error.
+
+**Since** $Var(\hat{f}(x_0))$ **and** $[Bias(\hat{f}(x_0))]^2$ **are both non-negative, we have that**
+
+$E[(y_0 - \hat{f}(x_0))^2] \ge 0 + 0+ Var(\epsilon) = Var(\epsilon)$ <br />
+
+**Therefore, the expected test MSE at any test observation point is always greater than or equal to the variance of the random noise (**$Var(\epsilon)$**), a.k.a. the irreducible error.**
+<br />
 
 #### Question 10
 
@@ -191,3 +211,18 @@ Hints:
 
 - use the definition of $Bias(\hat{f}(x_0))=E[\hat{f}(x_0)]-f(x_0)$;
 - reorganize terms in the expected test error by adding and subtracting $E[\hat{f}(x_0)]$
+
+**By the definition of the random noise** $\epsilon$**, we have that**
+$E(\epsilon) = 0$ **Therefore, **
+$Var(\epsilon) = E(\epsilon^2) - [E(\epsilon)]^2 = E(\epsilon^2)$ <br />
+**Also, by assumption **$y_0 = f(x_0)+ \epsilon$ <br />
+**Therefore,** <br />
+$E[(y_0 - \hat{f}(x_0))^2]$
+$=E[(f(x_0)+ \epsilon - \hat{f}(x_0))^2]$
+$=E[[f(x_0)]^2 + [\hat{f}(x_0)]^2 + \epsilon^2 - 2f(x_0)\hat{f}(x_0) +2\epsilon[f(x_0)-\hat{f}(x_0)] ]$
+$=E[[\hat{f}(x_0)]^2] - 2f(x_0)E[\hat{f}(x_0)] + [f(x_0)]^2 + E(\epsilon^2) +2E(\epsilon)E[f(x_0)-\hat{f}(x_0)]$
+$=(E[[\hat{f}(x_0)]^2] - [E[\hat{f}(x_0)]]^2) + ([E[\hat{f}(x_0)]]^2 - 2f(x_0)E[\hat{f}(x_0)] + [f(x_0)]^2) + Var(\epsilon) + 0$
+$=Var(\hat{f}(x_0)) + (E[\hat{f}(x_0)]-f(x_0))^2 + Var(\epsilon)$
+$=Var(\hat{f}(x_0)) + [Bias(\hat{f}(x_0))]^2 + Var(\epsilon)$
+
+**The proposition is thereby proven.**
